@@ -32,7 +32,7 @@ import {
 } from "firebase/firestore";
 
 // ==================================================================================
-// CONFIGURAÇÃO FIREBASE
+// CONFIGURAÇÃO FIREBASE (PRODUÇÃO)
 // ==================================================================================
 const firebaseConfig = {
   apiKey: "AIzaSyC8oUxh-C3YELINAJy5nbwYqXcIv55Ch00",
@@ -43,11 +43,11 @@ const firebaseConfig = {
   appId: "1:978626968094:web:fe04205ab18aa44dd3cc0f"
 };
 
-// Inicialização segura
+// Inicialização Direta (Sem dependências de ambiente de teste)
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = 'shopee-calc-app';
+const appId = 'shopee-calc-app'; // ID Fixo para a aplicação
 
 const ShopeeCalculator = () => {
   // --- ESTADOS DE DADOS (Calculadora) ---
@@ -116,7 +116,12 @@ const ShopeeCalculator = () => {
       if (isRegistering) await createUserWithEmailAndPassword(auth, email, password);
       else await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
-      setAuthError("Erro ao autenticar. Verifique seus dados.");
+      console.error("Erro Auth Detalhado:", error); // Log para debug
+      let msg = "Erro ao autenticar.";
+      if (error.code === 'auth/invalid-credential') msg = "Senha ou e-mail incorretos.";
+      if (error.code === 'auth/email-already-in-use') msg = "E-mail já está em uso.";
+      if (error.code === 'auth/network-request-failed') msg = "Erro de conexão. Verifique sua internet.";
+      setAuthError(msg);
       setLoadingAuth(false);
     }
   };
@@ -210,12 +215,14 @@ const ShopeeCalculator = () => {
   const taxaShopeePorcentagem = temFreteGratis ? 20 : 14; 
   const taxaFixa = 4.00; 
   const custoTotal = Number(custoProduto) + Number(freteInterno) + Number(embalagem) + Number(outrosCustos);
-  const divisor = 1 - ((taxaShopeePorcentagem + Number(imposto) + Number(margemDesejada)) / 100);
   
-  // Preço de Venda Ideal
+  // Cálculo Principal
+  const divisor = 1 - ((taxaShopeePorcentagem + Number(imposto) + Number(margemDesejada)) / 100);
   const precoVenda = divisor > 0 ? (custoTotal + taxaFixa) / divisor : 0;
-  // Preço De (Inflado)
+  
+  // Preço De (Inflado pelo desconto escolhido)
   const precoPlataforma = precoVenda > 0 ? precoVenda / (1 - (descontoPercentual / 100)) : 0;
+  
   // Oferta Relâmpago
   const descontoRelampagoPercentual = Number(descontoPercentual) + 1; 
   const precoRelampago = precoPlataforma * (1 - (descontoRelampagoPercentual / 100));
@@ -231,7 +238,7 @@ const ShopeeCalculator = () => {
   const roasExcelente = roasMinimo * 2;
   const cpaIdeal = cpaMaximo / 2;
 
-  // --- FUNÇÃO DE SIMULAÇÃO (DEFINIDA CORRETAMENTE) ---
+  // --- FUNÇÃO DE SIMULAÇÃO ---
   const calcularPrecoLucroPorMargem = (margemSimulada) => {
     const divisorSimulado = 1 - ((taxaShopeePorcentagem + Number(imposto) + Number(margemSimulada)) / 100);
     const precoVendaSimulado = divisorSimulado > 0 ? (custoTotal + taxaFixa) / divisorSimulado : 0;
